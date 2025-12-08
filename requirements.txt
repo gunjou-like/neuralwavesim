@@ -1,3 +1,7 @@
 torch
 numpy
 matplotlib
+fastapi 
+uvicorn 
+requests 
+streamlit
