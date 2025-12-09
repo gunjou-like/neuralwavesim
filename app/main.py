@@ -13,7 +13,12 @@ NX = 100
 INPUT_SIZE = NX * 2
 HIDDEN_SIZE = 256
 OUTPUT_SIZE = NX
-MODEL_PATH = "wave_model.pth"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "wave_model.pth")
+
+# (確認用) 念のためログにパスを出すようにしておくと安心です
+print(f"Looking for model at: {MODEL_PATH}")
 
 # --- モデルのロード (起動時に1回だけ実行) ---
 print("Loading model...")

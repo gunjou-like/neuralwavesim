@@ -1,7 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
 numpy
 matplotlib
-fastapi 
-uvicorn 
-requests 
+fastapi
+uvicorn[standard]
+requests
 streamlit
