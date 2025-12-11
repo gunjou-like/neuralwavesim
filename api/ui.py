@@ -125,7 +125,7 @@ if st.sidebar.button("🚀 シミュレーション実行", type="primary"):
         
         try:
             # API リクエスト
-            response = requests.post(f"{API_URL}/simulate", json=payload)
+            response = requests.post(f"{API_URL}/simulate", json=payload, timeout=30)
             response.raise_for_status()
             result = response.json()
             
@@ -133,8 +133,108 @@ if st.sidebar.button("🚀 シミュレーション実行", type="primary"):
             st.session_state.result = result
             st.success(f"✅ 計算完了！ ({result['computation_time_ms']:.2f} ms)")
         
+        except requests.exceptions.HTTPError as e:
+            # ★ API からのバリデーションエラーを表示
+            if response.status_code == 422:
+                try:
+                    error_detail = response.json()
+                    st.error("❌ パラメータエラー")
+                    
+                    # FastAPI の ValidationError を解析
+                    if "detail" in error_detail:
+                        for error in error_detail["detail"]:
+                            loc = " → ".join(str(x) for x in error.get("loc", []))
+                            msg = error.get("msg", "")
+                            st.warning(f"**{loc}**: {msg}")
+                except:
+                    st.error(f"❌ バリデーションエラー: {e}")
+            
+            elif response.status_code == 400:
+                # ★ 初期条件の検証エラー
+                try:
+                    error_detail = response.json()
+                    st.error("❌ 初期条件が不適切です")
+                    
+                    if "detail" in error_detail:
+                        error_msg = error_detail["detail"]
+                        
+                        # エラーメッセージを解析して具体的なアドバイス
+                        if "境界に近すぎます" in error_msg:
+                            st.warning("🔧 **修正案:**")
+                            st.info(f"""
+                            - 現在の中心位置: {center:.2f}
+                            - 現在のパルス幅: {width:.2f}
+                            - 推奨範囲: {max(3*width, 0.5):.2f} ≤ center ≤ {10.0 - max(3*width, 0.5):.2f}
+                            
+                            **対処法:**
+                            1. 中心位置を領域の中央寄り（5.0付近）に設定
+                            2. パルス幅を小さくする
+                            """)
+                        
+                        elif "狭すぎます" in error_msg:
+                            min_width = 10 * 0.1 / (2 * 3.14159)  # 概算
+                            st.warning("🔧 **修正案:**")
+                            st.info(f"""
+                            - 現在のパルス幅: {width:.2f}
+                            - 最小推奨幅: {min_width:.2f}
+                            
+                            **理由:**
+                            - 空間解像度（dx={10.0/nx:.3f}）に対して幅が小さすぎます
+                            - 数値分散により精度が低下します
+                            
+                            **対処法:**
+                            1. パルス幅を {min_width*1.5:.2f} 以上に設定
+                            2. または空間グリッド数を増やす（nx > {int(nx*1.5)}）
+                            """)
+                        
+                        elif "広すぎます" in error_msg:
+                            max_width = 10.0 / 4
+                            st.warning("🔧 **修正案:**")
+                            st.info(f"""
+                            - 現在のパルス幅: {width:.2f}
+                            - 最大推奨幅: {max_width:.2f}
+                            
+                            **理由:**
+                            - 領域長（L=10.0）に対して幅が大きすぎます
+                            - 境界反射波との干渉で予期しない共鳴が発生します
+                            
+                            **対処法:**
+                            1. パルス幅を {max_width:.2f} 以下に設定
+                            """)
+                        
+                        # 元のエラーメッセージも表示
+                        with st.expander("詳細なエラーメッセージ"):
+                            st.code(error_msg)
+                except:
+                    st.error(f"❌ リクエストエラー: {e}")
+            
+            else:
+                st.error(f"❌ サーバーエラー: {e}")
+        
+        except requests.exceptions.ConnectionError:
+            st.error("❌ API サーバーに接続できません")
+            st.info("""
+            **解決方法:**
+            1. API サーバーが起動しているか確認してください
+            
+            ```bash
+            # 別ターミナルで実行
+            uvicorn api.main:app --reload
+            ```
+            
+            2. ポート 8000 が使用可能か確認してください
+            """)
+        
+        except requests.exceptions.Timeout:
+            st.error("❌ リクエストがタイムアウトしました")
+            st.info("計算時間が長すぎる可能性があります。nt を減らしてみてください。")
+        
         except Exception as e:
-            st.error(f"❌ エラー: {e}")
+            st.error(f"❌ 予期しないエラー: {e}")
+            with st.expander("デバッグ情報"):
+                st.json(payload)
+                import traceback
+                st.code(traceback.format_exc())
 
 # 結果表示
 if "result" in st.session_state:
