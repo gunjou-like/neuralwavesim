@@ -1,60 +1,77 @@
-# app/main.py
+# app/main.py (修正版)
 from fastapi import FastAPI
 from pydantic import BaseModel
 import torch
 import numpy as np
 import os
-from model import WavePredictor  # 同階層のmodel.pyからクラスを読み込み
+from model import WavePredictor
+from pinns_model import WavePINNs
+from pinns_inference import PINNsInference
 
 app = FastAPI()
 
-# --- 設定 ---
-NX = 100
-INPUT_SIZE = NX * 2
-HIDDEN_SIZE = 256
-OUTPUT_SIZE = NX
+# --- 既存モデル (データ駆動型) ---
+model_data_driven = WavePredictor(200, 256, 100)
+if os.path.exists("wave_model.pth"):
+    model_data_driven.load_state_dict(torch.load("wave_model.pth", map_location='cpu'))
+    model_data_driven.eval()
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "wave_model.pth")
+# --- PINNs モデル ---
+pinns_inference = None
+if os.path.exists("wave_pinns.pth"):
+    pinns_inference = PINNsInference("wave_pinns.pth")
+    print("✅ PINNs model loaded successfully")
 
-# (確認用) 念のためログにパスを出すようにしておくと安心です
-print(f"Looking for model at: {MODEL_PATH}")
-
-# --- モデルのロード (起動時に1回だけ実行) ---
-print("Loading model...")
-model = WavePredictor(INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE)
-
-# CPUで動かす設定 (map_location='cpu' はクラウドデプロイ時のエラー回避にも重要)
-if os.path.exists(MODEL_PATH):
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=torch.device('cpu')))
-    model.eval()  # 推論モードへ
-    print("Model loaded successfully.")
-else:
-    print("Error: wave_model.pth not found!")
-
-# --- データ形式の定義 ---
 class WaveInput(BaseModel):
-    # フロントエンドから送られてくる配列 (長さ200: 現在の波 + 1つ前の波)
     wave_data: list[float]
+    use_pinns: bool = False
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Neural Wave Simulator API is running."}
+class SimulationRequest(BaseModel):
+    nx: int = 100
+    nt: int = 200
+    use_pinns: bool = True
 
 @app.post("/predict")
 def predict(input_data: WaveInput):
-    """
-    現在の波形データを受け取り、次の時刻の波形を予測して返す
-    """
-    # 1. リストをnumpy配列へ
-    data = np.array(input_data.wave_data, dtype=np.float32)
+    """1ステップ予測（既存互換）"""
+    if input_data.use_pinns and pinns_inference:
+        # PINNs による予測
+        current = np.array(input_data.wave_data[:100])
+        previous = np.array(input_data.wave_data[100:]) if len(input_data.wave_data) > 100 else current
+        
+        next_wave = pinns_inference.predict_next_step(current, previous)
+        return {"next_wave": next_wave.tolist(), "method": "PINNs"}
+    else:
+        # データ駆動型予測
+        data = np.array(input_data.wave_data, dtype=np.float32)
+        tensor_in = torch.from_numpy(data).unsqueeze(0)
+        
+        with torch.no_grad():
+            prediction = model_data_driven(tensor_in)
+        
+        return {"next_wave": prediction.squeeze().tolist(), "method": "Data-Driven"}
+
+@app.post("/simulate")
+def simulate(request: SimulationRequest):
+    """時空間全体のシミュレーション（PINNs専用）"""
+    if not request.use_pinns or not pinns_inference:
+        return {"error": "PINNs model not available"}
     
-    # 2. PyTorchのテンソルへ変換 & バッチ次元を追加 (shape: [1, 200])
-    tensor_in = torch.from_numpy(data).unsqueeze(0)
+    wave_history = pinns_inference.predict_wave_evolution(
+        nx=request.nx,
+        nt=request.nt
+    )
     
-    # 3. AI予測実行
-    with torch.no_grad():
-        prediction = model(tensor_in)
-    
-    # 4. 結果をリストに戻してJSONで返す
-    return {"next_wave": prediction.squeeze().tolist()}
+    return {
+        "wave_history": wave_history.tolist(),
+        "shape": wave_history.shape,
+        "method": "PINNs"
+    }
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "data_driven_loaded": model_data_driven is not None,
+        "pinns_loaded": pinns_inference is not None
+    }
