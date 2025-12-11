@@ -112,7 +112,18 @@ def test_initial_condition_stability():
             
             print(f"{test['name']:20s}: 変動率 {variation:6.2f}%  最大振幅 {max_amp:8.4f}  {status}")
         
+        except ValueError as e:
+            # ★ 検証エラー（予期された失敗）
+            print(f"{test['name']:20s}: ⛔ 検証拒否 - {str(e).splitlines()[0]}")
+            results.append({
+                'name': test['name'],
+                'variation': None,
+                'status': "⛔ 検証拒否",
+                'max_amplitude': None
+            })
+        
         except Exception as e:
+            # ★ 予期しないエラー
             print(f"{test['name']:20s}: ❌ エラー - {e}")
             results.append({
                 'name': test['name'],
