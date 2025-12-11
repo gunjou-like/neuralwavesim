@@ -1,141 +1,129 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
-import os
+from pathlib import Path
 
-# ==========================================
-# 1. 物理シミュレーション (教師データ生成)
-# ==========================================
-class WaveSimulator:
-    def __init__(self, nx=100, nt=200, c=1.0, dt=0.05, dx=0.1):
-        self.nx = nx  # 空間分割数
-        self.nt = nt  # 時間ステップ数
-        self.c = c    # 波の速さ
-        self.dt = dt
-        self.dx = dx
-        # クーラン数 (安定条件: C <= 1)
-        self.C = c * dt / dx
-        assert self.C <= 1.0, f"Unstable condition! C={self.C}"
+# Core モジュールから物理シミュレーターをインポート
+from core.solver import WaveSolver
+from core.config import PhysicsParams, InitialCondition
 
-    def step(self, u_prev, u_curr):
-        """差分法による1ステップ更新 (u_nextを計算)"""
-        u_next = np.zeros_like(u_curr)
-        # 固定端境界条件なので、両端(0と-1)は0のまま、内側だけ計算
-        # u_tt = c^2 * u_xx
-        # u_next = 2*u_curr - u_prev + (C^2) * (u_curr[i+1] - 2*u_curr[i] + u_curr[i-1])
-        u_next[1:-1] = 2*u_curr[1:-1] - u_prev[1:-1] + \
-                       (self.C**2) * (u_curr[2:] - 2*u_curr[1:-1] + u_curr[:-2])
-        return u_next
+# モデル定義
+class WavePredictor(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, output_size)
+        )
+    
+    def forward(self, x):
+        return self.net(x)
 
-    def generate_sample(self):
-        """1つの初期条件から時系列データを生成"""
-        u = np.zeros((self.nt, self.nx))
-        
-        # ランダムな初期条件 (ガウスパルス)
-        x = np.linspace(0, 10, self.nx)
-        center = np.random.uniform(2, 8)
-        width = np.random.uniform(0.5, 1.5)
+def generate_training_data(num_samples=1000, nx=100, nt=200):
+    """物理シミュレーションで学習データ生成"""
+    print("Generating training data...")
+    
+    X_train = []
+    y_train = []
+    
+    params = PhysicsParams(nx=nx, nt=nt)
+    
+    for i in range(num_samples):
+        # ランダムな初期条件
+        center = np.random.uniform(2.0, 8.0)
+        width = np.random.uniform(0.5, 2.0)
         height = np.random.uniform(0.5, 1.5)
         
-        # t=0, t=1 (初期速度0として近似スタート)
-        u[0] = height * np.exp(-((x - center)**2) / (2 * width**2))
-        u[1] = u[0] # 初期速度0
+        ic = InitialCondition(
+            wave_type="gaussian",
+            center=center,
+            width=width,
+            height=height
+        )
         
-        # シミュレーション実行
-        for t in range(1, self.nt - 1):
-            u[t+1] = self.step(u[t-1], u[t])
-            
-        return u
-
-def create_dataset(num_samples=100):
-    """学習用データセットを作成"""
-    sim = WaveSimulator()
-    X_data = []
-    y_data = []
+        # 物理シミュレーション実行
+        solver = WaveSolver(params)
+        wave_history = solver.solve(ic)
+        
+        # データペア作成: (t-1, t) → t+1
+        for t in range(1, nt - 1):
+            X_train.append(np.concatenate([wave_history[t], wave_history[t-1]]))
+            y_train.append(wave_history[t+1])
+        
+        if (i + 1) % 100 == 0:
+            print(f"  Generated {i+1}/{num_samples} samples...")
     
-    print(f"Generating {num_samples} simulation samples...")
-    for _ in range(num_samples):
-        wave_history = sim.generate_sample()
-        # 入力: 現在の波形 (t) と 1つ前の波形 (t-1) のセット -> 速度情報をAIに与えるため
-        # 出力: 次の波形 (t+1)
-        for t in range(1, sim.nt - 1):
-            # Input: shape (2, nx) -> Flattenして (2*nx) にしてもよいし、2chとして扱ってもよい
-            # ここではシンプルにMLPに入れるため Flatten します
-            current_state = np.concatenate([wave_history[t], wave_history[t-1]])
-            next_state = wave_history[t+1]
-            
-            X_data.append(current_state)
-            y_data.append(next_state)
-            
-    return np.array(X_data, dtype=np.float32), np.array(y_data, dtype=np.float32)
+    X_train = np.array(X_train, dtype=np.float32)
+    y_train = np.array(y_train, dtype=np.float32)
+    
+    print(f"Training data shape: X={X_train.shape}, y={y_train.shape}")
+    return X_train, y_train
 
-# ==========================================
-# 2. モデル定義 (PyTorch)
-# ==========================================
-try:
-    # Prefer absolute import; when running this script directly the package root may not be on sys.path.
-    from app.model import WavePredictor
-except ImportError:
-    import sys
-    import os
-    # Add parent directory to sys.path so 'app' can be imported when running as a script.
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from app.model import WavePredictor
-
-# ==========================================
-# 3. 学習実行
-# ==========================================
-def main():
-    # パラメータ
-    NX = 100
-    INPUT_SIZE = NX * 2  # (t) と (t-1) の2フレーム分を入力
-    OUTPUT_SIZE = NX     # (t+1) を予測
-    HIDDEN_SIZE = 256
-    EPOCHS = 20
-    BATCH_SIZE = 32
-
+def train_model(epochs=1000, batch_size=64, lr=1e-3):
+    """モデル学習"""
+    print("=" * 50)
+    print("Training Data-Driven Wave Predictor")
+    print("=" * 50)
+    
     # データ生成
-    X, y = create_dataset(num_samples=50) # 50シミュレーション分 (データ数は 50 * 200step ≒ 10000)
+    X_train, y_train = generate_training_data(num_samples=500)
     
-    # Tensor化
-    X_tensor = torch.from_numpy(X)
-    y_tensor = torch.from_numpy(y)
-    
-    dataset = torch.utils.data.TensorDataset(X_tensor, y_tensor)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-
     # モデル・オプティマイザ
-    model = WavePredictor(INPUT_SIZE, HIDDEN_SIZE, OUTPUT_SIZE)
+    model = WavePredictor(200, 256, 100)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-    print("Start Training...")
-    loss_history = []
     
-    for epoch in range(EPOCHS):
-        epoch_loss = 0.0
-        for batch_X, batch_y in dataloader:
-            optimizer.zero_grad()
-            outputs = model(batch_X)
-            loss = criterion(outputs, batch_y)
-            loss.backward()
-            optimizer.step()
-            epoch_loss += loss.item()
+    # 学習ループ
+    losses = []
+    
+    for epoch in range(epochs):
+        # ランダムサンプリング
+        indices = np.random.choice(len(X_train), batch_size, replace=False)
+        X_batch = torch.from_numpy(X_train[indices])
+        y_batch = torch.from_numpy(y_train[indices])
         
-        avg_loss = epoch_loss / len(dataloader)
-        loss_history.append(avg_loss)
-        print(f"Epoch [{epoch+1}/{EPOCHS}], Loss: {avg_loss:.6f}")
-
-    # 保存
-    torch.save(model.state_dict(), "app/wave_model.pth")
-    print("Model saved to 'app/wave_model.pth'")
+        # 順伝播
+        optimizer.zero_grad()
+        predictions = model(X_batch)
+        loss = criterion(predictions, y_batch)
+        
+        # 逆伝播
+        loss.backward()
+        optimizer.step()
+        
+        losses.append(loss.item())
+        
+        if (epoch + 1) % 100 == 0:
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item():.6f}")
     
-    # 学習曲線の確認（任意）
-    plt.plot(loss_history)
-    plt.title("Training Loss")
+    # モデル保存（★ 修正: 正しいパスに保存）
+    save_dir = Path(__file__).parent.parent / "models" / "checkpoints"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / "wave_model.pth"
+    
+    torch.save(model.state_dict(), save_path)
+    print(f"\n✅ Model saved to {save_path}")
+    
+    # 学習曲線プロット
+    plt.figure(figsize=(10, 6))
+    plt.plot(losses)
+    plt.yscale('log')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Data-Driven Model Training Loss')
+    plt.grid(True)
+    plt.savefig('data_driven_training_loss.png')
+    print("✅ Training curve saved to data_driven_training_loss.png")
     plt.show()
 
 if __name__ == "__main__":
-    main()
+    train_model(epochs=1000, batch_size=64, lr=1e-3)

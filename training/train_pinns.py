@@ -52,7 +52,7 @@ def train():
     for epoch in range(EPOCHS):
         optimizer.zero_grad()
         
-        # ★ 修正: 毎エポックごとにトレーニングデータを再生成
+        # 毎エポックごとにトレーニングデータを再生成
         x_pde, t_pde, x_bc, t_bc, x_ic, t_ic, u_ic = generate_training_data()
         
         # 1. PDE残差損失
@@ -79,10 +79,14 @@ def train():
             print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {loss.item():.6f} "
                   f"(PDE: {loss_pde.item():.6f}, BC: {loss_bc.item():.6f}, IC: {loss_ic.item():.6f})")
     
-    # モデル保存
-    save_path = os.path.join(os.path.dirname(__file__), '..', 'app', 'wave_pinns.pth')
+    # モデル保存（★ 修正）
+    from pathlib import Path
+    save_dir = Path(__file__).parent.parent / "models" / "checkpoints"
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / "wave_pinns.pth"
+    
     torch.save(model.state_dict(), save_path)
-    print(f"Model saved to {save_path}")
+    print(f"✅ Model saved to {save_path}")
     
     # 学習曲線プロット
     plt.figure(figsize=(10, 6))
@@ -93,7 +97,7 @@ def train():
     plt.title('PINNs Training Loss')
     plt.grid(True)
     plt.savefig('pinns_training_loss.png')
-    print("Training curve saved to pinns_training_loss.png")
+    print("✅ Training curve saved to pinns_training_loss.png")
     plt.show()
 
 if __name__ == "__main__":

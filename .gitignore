@@ -1,3 +1,50 @@
-venv/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# モデルファイル（大容量）
+*.pth
+*.h5
+*.pkl
+*.ckpt
+
+# データファイル
+*.npy
+*.npz
+*.csv
+data/raw/*
+!data/raw/.gitkeep
+
+# 実験結果
+experiments/
+logs/
+*.log
+
+# 可視化結果（PNG は残す場合もある）
+# *.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 一時ファイル
+*.tmp
+*.bak
+*~
