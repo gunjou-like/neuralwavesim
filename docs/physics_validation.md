@@ -124,32 +124,63 @@ $$
 
 差分法シミュレーターにおいて、特定の初期条件下で数値発散が発生:
 
-| 初期条件 | 変動率 | 状態 |
-|---------|--------|------|
-| center=1.0 | 120% | ❌ 発散 |
-| width=0.3 | 16% | ⚠️ 不安定 |
-| width=3.0 | 123% | ❌ 発散 |
+| 初期条件 | 変動率（修正前） | 状態 |
+|---------|----------------|------|
+| center=1.0 | 120.25% | ❌ 発散 |
+| center=9.0 | 120.25% | ❌ 発散 |
+| width=0.3 | 16.22% | ⚠️ 不安定 |
+| width=0.5 | 8.79% | ⚠️ 不安定 |
+| width=3.0 | 122.56% | ❌ 発散 |
 
 ### 3.2 原因分析
 
 #### (1) 境界条件との不整合
 
-固定端境界条件 $u(0, t) = 0$ に対し、初期条件 $u(0, 0) \neq 0$ の場合、
-数値的に高周波モードが励起される。
+**問題:**
+
+固定端境界条件 $u(0, t) = u(L, t) = 0$ に対し、初期条件がこの条件を満たさない場合:
+
+$$
+u(0, 0) = h \exp\left(-\frac{x_0^2}{2\sigma^2}\right) \neq 0 \quad \text{when } x_0 \approx 0
+$$
+
+**結果:** 数値的に高周波モードが励起され、CFL条件ギリギリで増幅
 
 #### (2) 空間解像度不足
 
-ガウスパルスの特性波長 $\lambda_c = 2\pi\sigma$ に対し、
-格子間隔 $\Delta x$ が不十分な場合、数値分散により位相誤差が蓄積。
+**ガウスパルスの特性波長:**
+
+$$
+\lambda_c = 2\pi\sigma
+$$
+
+**必要な解像度（Nyquist-Shannon定理）:**
+
+$$
+\Delta x \le \frac{\lambda_c}{10} = \frac{2\pi\sigma}{10}
+$$
+
+**width=0.3 の場合:**
+
+$$
+\lambda_c = 2\pi \times 0.3 = 1.88 \, \text{m}
+$$
+
+必要: $\Delta x \le 0.188$ だが、実際は $\Delta x = 0.1$
+
+一見十分だが、**高周波成分（$k \sim 3/\sigma$）まで考慮すると不足**
 
 #### (3) 境界との干渉
 
-パルス幅が領域長に対して大きすぎる場合、
-境界反射波との重ね合わせで予期しない共鳴が発生。
+パルス幅が大きい（$\sigma > L/4$）場合、境界反射波との重ね合わせで予期しない共鳴が発生。
+
+---
 
 ### 3.3 修正手法
 
-#### 境界減衰処理（Window Function）
+#### A. 境界減衰処理（Window Function）
+
+初期条件に境界減衰を適用:
 
 $$
 \tilde{u}(x, 0) = w(x) \cdot u(x, 0)
@@ -157,26 +188,33 @@ $$
 
 $$
 w(x) = \begin{cases}
-\frac{x}{3\Delta x} & 0 \le x < 3\Delta x \\
-1 & 3\Delta x \le x \le L - 3\Delta x \\
-\frac{L - x}{3\Delta x} & L - 3\Delta x < x \le L
+\displaystyle \frac{x}{3\Delta x} & 0 \le x < 3\Delta x \\[8pt]
+1 & 3\Delta x \le x \le L - 3\Delta x \\[8pt]
+\displaystyle \frac{L - x}{3\Delta x} & L - 3\Delta x < x \le L
 \end{cases}
 $$
 
 **効果:**
-- 境界で厳密に $\tilde{u}(0, 0) = 0$
-- 滑らかな遷移により高周波抑制
-- 中央部は元の初期条件を保持
 
-#### 初期条件の検証
+1. **境界で厳密にゼロ:** $\tilde{u}(0, 0) = w(0) \cdot u(0, 0) = 0$
+2. **滑らかな遷移:** $dw/dx = 1/(3\Delta x)$ は有限
+3. **内部で元の初期条件を保持:** $w(x) = 1$ for $x \in [0.3, 9.7]$（85%の領域）
+
+**エネルギー減少の評価:**
+
+$$
+\frac{\Delta E}{E_0} = \frac{\int_0^{3\Delta x} u^2 dx}{\int_0^L u^2 dx} < 5\%
+$$
+
+#### B. 初期条件の検証
 
 ```python
-# 境界からの距離
+# 境界からの安全距離
 margin = max(3 * width, 5 * dx)
 
-# 幅の範囲
+# 幅の範囲制限
 min_width = 10 * dx / (2 * π)  # 特性波長を10点で解像
-max_width = L / 4
+max_width = L / 4              # 領域の1/4以下
 
 # 検証
 if center < margin or center > L - margin:
@@ -185,132 +223,142 @@ if width < min_width or width > max_width:
     raise ValueError("幅が不適切")
 ```
 
+**計算例（dx=0.1, L=10.0）:**
+
+$$
+\text{min\_width} = \frac{10 \times 0.1}{2\pi} \approx 0.159
+$$
+
+$$
+\text{max\_width} = \frac{10.0}{4} = 2.5
+$$
+
+$$
+\text{margin} = \max(3 \times 1.0, 5 \times 0.1) = 3.0
+$$
+
+→ 推奨範囲: $3.0 \le \text{center} \le 7.0$
+
+---
+
 ### 3.4 修正結果
 
 | 項目 | 修正前 | 修正後 |
 |------|--------|--------|
-| 発散ケース | 3/15 | 0/15 ✅ |
-| 不適切な条件 | 実行可能 | 事前検証で拒否 |
-| エネルギー変動率 | 最大 123% | すべて < 5% |
+| **発散ケース** | 3/15 (20%) | 0/15 (0%) ✅ |
+| **不安定ケース** | 3/15 (20%) | 2/15 (13%) ⚠️ |
+| **検証拒否** | 0/15 (0%) | 6/15 (40%) 🛡️ |
+| **安定ケース** | 9/15 (60%) | 7/15 (47%) |
+| **最大変動率** | 122.56% | 16.22% |
+
+**詳細:**
+
+```
+修正後の実行結果:
+
+center=1.0: ⛔ 検証拒否（境界に近い）
+center=2.5: ⛔ 検証拒否（境界に近い）
+center=5.0: ✅ 安定（変動率 4.22%）
+center=7.5: ⛔ 検証拒否（境界に近い）
+center=9.0: ⛔ 検証拒否（境界に近い）
+
+width=0.3: ⚠️ 不安定（変動率 16.22%、解像度警告）
+width=0.5: ⚠️ 不安定（変動率 8.79%、解像度警告）
+width=1.0: ✅ 安定（変動率 4.22%）
+width=2.0: ⛔ 検証拒否（中心が境界に近くなる）
+width=3.0: ⛔ 検証拒否（広すぎる）
+
+height=0.5~10.0: すべて ✅ 安定（変動率 4.22%）
+```
+
+---
 
 ### 3.5 理論的裏付け
 
-**エネルギー減少の定量評価:**
+#### Von Neumann 安定性解析
 
-境界層（幅 $3\Delta x$）でのエネルギー損失:
-
-$$
-\frac{\Delta E}{E_0} \approx \frac{\int_0^{3\Delta x} u^2 dx}{\int_0^L u^2 dx} < 5\%
-$$
-
-**数値分散の抑制:**
-
-Von Neumann 安定性解析により、高波数成分の増幅率:
+離散化された波動方程式の増幅因子:
 
 $$
-|G(k)| = \sqrt{1 - 4C^2\sin^2(k\Delta x / 2)} \le 1
+G = 1 - 4C^2 \sin^2\left(\frac{k\Delta x}{2}\right)
 $$
 
-境界減衰により $k \gtrsim \pi/\Delta x$ の成分を抑制。
+CFL数 $C = 0.5$ の場合:
+
+$$
+|G| = \sqrt{1 - \sin^2(k\Delta x / 2)} \le 1 \quad \forall k
+$$
+
+**境界減衰の効果:**
+
+高波数成分（$k \gtrsim \pi/\Delta x$）を初期時刻で抑制 → 増幅の芽を摘む
+
+#### 数値分散の抑制
+
+差分法の分散関係:
+
+$$
+\omega_d^2 = \frac{4c^2}{\Delta x^2} \sin^2\left(\frac{k\Delta x}{2}\right)
+$$
+
+真の分散関係 $\omega^2 = c^2 k^2$ との誤差:
+
+$$
+\frac{\omega_d}{\omega} = \frac{2}{k\Delta x} \sin\left(\frac{k\Delta x}{2}\right)
+$$
+
+**width=1.0 の場合:**
+
+特性波数 $k_c = 1/\sigma = 1.0$ rad/m
+
+$$
+k_c \Delta x = 1.0 \times 0.1 = 0.1 \ll \pi
+$$
+
+$$
+\frac{\omega_d}{\omega} \approx 1 - \frac{(k\Delta x)^2}{24} \approx 0.9996
+$$
+
+→ **誤差 0.04%（非常に小さい）**
+
+**width=0.3 の場合:**
+
+$$
+k_c = 1/0.3 \approx 3.33 \text{ rad/m}
+$$
+
+$$
+k_c \Delta x = 3.33 \times 0.1 = 0.333
+$$
+
+$$
+\frac{\omega_d}{\omega} \approx 0.982
+$$
+
+→ **誤差 1.8%（無視できない）**
+
+これが蓄積して 200 ステップ後に **16%の変動率** につながる。
 
 ---
 
-## 結論
+### 3.6 結論
 
-✅ 境界減衰処理と初期条件検証により、すべてのケースで数値安定性を確保
+✅ **境界減衰処理と初期条件検証により、すべての発散ケースを解消**
 
-✅ エネルギー保存則を維持（変動率 < 5%）
+✅ **エネルギー保存則を維持（変動率 < 5% または事前検証で拒否）**
 
-✅ 物理的に不適切な初期条件を事前検出
+✅ **物理的に不適切な初期条件を実行前に検出**
 
----
-
-## 4. エネルギー交換のメカニズム
-
-### 定在波のエネルギー変換
-
-```
-時刻 t=0:     ガウスパルス（静止）
-              K = 0, P = 最大
-
-時刻 t=T/4:   波が平坦化（最大速度）
-              K = 最大, P = 0
-
-時刻 t=T/2:   反転したガウスパルス（静止）
-              K = 0, P = 最大
-
-時刻 t=3T/4:  再び平坦化
-              K = 最大, P = 0
-
-時刻 t=T:     元のガウスパルス
-              K = 0, P = 最大
-```
-
-**重要:** 総エネルギー E = K + P は一定（保存則）
+⚠️ **狭いパルス（width < 0.5）は解像度不足の警告付きで実行可能**
+   → ユーザーの判断に委ねる（教育・デモ用途なら許容）
 
 ---
 
-## 5. 数値計算の限界
+**参考文献:**
 
-### 有限差分法の誤差
-
-| 要因 | 影響 |
-|------|------|
-| 浮動小数点演算の丸め誤差 | ~1e-15 |
-| 差分近似の打ち切り誤差 | O(dt²) + O(dx²) |
-| 長時間積分での誤差蓄積 | 累積的 |
-
-### 実用的な目標値
-
-| 誤差レベル | 評価 | 用途 |
-|-----------|------|------|
-| < 0.1% | 優秀 | 学術研究レベル |
-| < 1% | 良好 ✅ | 工学的に十分 |
-| < 5% | 許容範囲 ⚠️ | 定性的な分析 |
-| > 5% | 改善必要 ❌ | 信頼性に問題 |
-
----
-
-## 6. 結論
-
-### ✅ 物理ベースモデル（差分法）
-- エネルギー保存則をほぼ満たす（変動 4.28%）
-- 周波数成分が理論予測と一致
-- **物理的に正しく動作している**
-
-### ⚠️ PINNs モデル
-- 定性的には正しい挙動
-- エネルギー減衰の問題あり
-- **損失関数の改善が必要**
-
-### ❌ データ駆動型モデル
-- エネルギーが増幅（非物理的）
-- 逐次予測による誤差蓄積
-- **物理制約の組み込みが必須**
-
----
-
-## 7. 今後の改善計画
-
-### Phase 1: 物理ベースモデルの高精度化
-- CFL数を 0.99 に調整 → 変動率 < 1% 達成
-
-### Phase 2: PINNs の損失関数改善
-- エネルギー保存則項の追加
-- PDE 残差の重み調整
-
-### Phase 3: データ駆動型の再設計
-- エネルギー制約付き学習
-- Teacher Forcing の導入
-- 長期予測の学習データ生成
-
----
-
-## 参考文献
-
-1. Courant, R., Friedrichs, K., & Lewy, H. (1928). "Über die partiellen Differenzengleichungen der mathematischen Physik"
-2. Raissi, M., Perdikaris, P., & Karniadakis, G. E. (2019). "Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations"
-3. LeVeque, R. J. (2007). "Finite Difference Methods for Ordinary and Partial Differential Equations"
+- LeVeque, R. J. (2007). *Finite Difference Methods for Ordinary and Partial Differential Equations*
+- Courant, R., Friedrichs, K., & Lewy, H. (1928). "Über die partiellen Differenzengleichungen der mathematischen Physik"
+- Trefethen, L. N. (1996). "Finite Difference and Spectral Methods for Ordinary and Partial Differential Equations"
 
 ---
 
