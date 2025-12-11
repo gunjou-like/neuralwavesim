@@ -1,16 +1,18 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Literal
 import time
+import numpy as np
 
+from core.solver import WaveSolver
 from core.config import PhysicsParams, InitialCondition
 from models.factory import ModelFactory
 
 app = FastAPI(
     title="Neural Wave Simulator API",
     description="3つのモデル（物理ベース/データ駆動型/PINNs）で波動シミュレーション",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS 設定
@@ -31,7 +33,7 @@ class InitialConditionRequest(BaseModel):
     data: Optional[List[float]] = None
 
 class SimulationRequest(BaseModel):
-    model_type: str = Field(..., description="physics, data-driven, または pinns")
+    model_type: Literal["physics", "data-driven", "pinns", "pinns-v2"]  # ★ 修正
     nx: int = Field(100, ge=50, le=500)
     nt: int = Field(200, ge=50, le=1000)
     c: float = Field(1.0, gt=0, le=5.0)
@@ -39,7 +41,7 @@ class SimulationRequest(BaseModel):
     
     @validator('model_type')
     def validate_model_type(cls, v):
-        allowed = ["physics", "data-driven", "pinns"]
+        allowed = ["physics", "data-driven", "pinns", "pinns-v2"]
         if v not in allowed:
             raise ValueError(f"model_type は {allowed} のいずれかを指定してください")
         return v
@@ -72,7 +74,7 @@ def simulate(request: SimulationRequest):
             data=request.initial_condition.data
         )
         
-        # ★ 初期条件の検証
+        # 初期条件の検証
         try:
             initial_condition.validate(params.dx, params.L)
         except ValueError as e:
@@ -81,9 +83,9 @@ def simulate(request: SimulationRequest):
                 detail=str(e)
             )
         
-        # ★ モデル実行（修正）
-        model = ModelFactory.create(request.model_type)  # params は渡さない
-        wave_history = model.predict(initial_condition, params)  # predict に両方渡す
+        # モデル実行
+        model = ModelFactory.create(request.model_type)
+        wave_history = model.predict(initial_condition, params)
         
         # 計算時間
         computation_time = (time.time() - start_time) * 1000
@@ -125,13 +127,15 @@ def simulate(request: SimulationRequest):
 def root():
     return {
         "message": "Neural Wave Simulator API",
-        "version": "1.0.0",
-        "endpoints": {
-            "POST /simulate": "シミュレーション実行",
-            "GET /docs": "API ドキュメント"
-        }
+        "version": "2.0",
+        "available_models": [
+            "physics",
+            "data-driven",
+            "pinns",
+            "pinns-v2"
+        ]
     }
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "healthy"}

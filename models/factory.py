@@ -3,6 +3,7 @@ from .base import WaveModel
 from .physics import PhysicsBasedModel
 from .data_driven import DataDrivenModel
 from .pinns import PINNsModel
+from .pinns_v2 import PINNsModel_v2
 
 class ModelFactory:
     """
@@ -14,6 +15,7 @@ class ModelFactory:
         "physics": PhysicsBasedModel,
         "data-driven": DataDrivenModel,
         "pinns": PINNsModel,
+        "pinns-v2": PINNsModel_v2,  # ★ 追加
     }
     
     @classmethod
@@ -22,7 +24,7 @@ class ModelFactory:
         モデルインスタンスを生成
         
         Args:
-            model_type: "physics" | "data-driven" | "pinns"
+            model_type: "physics" | "data-driven" | "pinns" | "pinns-v2"
             **kwargs: モデル固有のパラメータ
         
         Returns:
