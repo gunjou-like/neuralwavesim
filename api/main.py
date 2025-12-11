@@ -81,9 +81,9 @@ def simulate(request: SimulationRequest):
                 detail=str(e)
             )
         
-        # モデル実行
-        model = ModelFactory.create(request.model_type, params)
-        wave_history = model.predict(initial_condition)
+        # ★ モデル実行（修正）
+        model = ModelFactory.create(request.model_type)  # params は渡さない
+        wave_history = model.predict(initial_condition, params)  # predict に両方渡す
         
         # 計算時間
         computation_time = (time.time() - start_time) * 1000
@@ -116,8 +116,10 @@ def simulate(request: SimulationRequest):
         raise HTTPException(status_code=500, detail=f"数値計算エラー: {str(e)}")
     
     except Exception as e:
-        # その他のエラー
-        raise HTTPException(status_code=500, detail=f"内部エラー: {str(e)}")
+        # ★ デバッグ情報を追加
+        import traceback
+        error_detail = f"内部エラー: {str(e)}\n\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.get("/")
 def root():
