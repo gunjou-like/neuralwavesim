@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Data (exclude large training data)
+training/data/*.npz
+*.png
+*.jpg
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# Testing
+tests/
+pytest_cache/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

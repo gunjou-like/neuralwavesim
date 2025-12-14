@@ -138,4 +138,9 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint for Cloud Run"""
+    return {
+        "status": "healthy",
+        "service": "NeuralWaveSim API",
+        "version": "2.1"
+    }
