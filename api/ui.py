@@ -17,7 +17,7 @@ st.markdown("""
             **Physics-Informed Neural Networks for Wave Equation Simulation**
             This application demonstrates four approachs to solving the 1D wave equation:
             1. **Physics-Based Solver**: Traditional finite difference method.
-            2. **Data-Driven Neural Network**: A neural network trained on pure simulation data.
+            2. **Data-Driven Neural Network v2**: A neural network (LSTM-based) trained on pure simulation data.
             3. **PINNs (Original)**: Physics-Informed Neural Networks incorporating wave equation constraints.
             4. **PINNs v2**: An improved version of PINNs with enhanced energy conservation.
             """)
