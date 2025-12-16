@@ -11,6 +11,8 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
 
 ---
 
+![webapp UI](images\ui.png)
+
 ## 🎯 Features
 
 - **Multiple Model Implementations**
@@ -35,6 +37,8 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
   - Easy integration
 
 ---
+
+
 
 ## 🏆 Model Performance
 
