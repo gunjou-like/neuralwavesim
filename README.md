@@ -11,7 +11,7 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
 
 ---
 
-![webapp UI](images\ui.png)
+![webapp UI](images//ui.png)
 
 ## 🎯 Features
 
