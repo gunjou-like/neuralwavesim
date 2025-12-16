@@ -80,12 +80,10 @@ Open browser at `http://localhost:8501`
 ### Run API Server
 
 ```bash
-uvicorn api.main:app --reload
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-API docs available at `http://localhost:8000/docs`
-
----
+API docs available at `http://localhost:8080/docs`
 
 ## 📖 Usage
 

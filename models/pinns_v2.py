@@ -13,7 +13,7 @@ from core.config import PhysicsParams, InitialCondition
 class PINNsModel_v2(WaveModel):
     """Improved Physics-Informed Neural Network Model"""
     
-    def __init__(self, model_path='models/pinns_v2.pth'):
+    def __init__(self, model_path='models/checkpoints/pinns_v2.pth'):
         """
         Initialize improved PINNs model
         

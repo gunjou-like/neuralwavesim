@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neuralwavesim-api
+    ports:
+      - "8080:8080"
+    networks:
+      - neuralwavesim-network
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./models/checkpoints:/app/models/checkpoints:ro
+
+  # Streamlit Frontend
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: neuralwavesim-ui
+    ports:
+      - "8501:8501"
+    networks:
+      - neuralwavesim-network
+    environment:
+      - API_URL=http://api:8080  # ✅ これは正しい
+    depends_on:
+      - api
+
+networks:
+  neuralwavesim-network:
+    driver: bridge

@@ -1,0 +1,25 @@
+# ============================================
+# Minimal requirements for deployment
+# ============================================
+
+# Core
+numpy==2.3.5
+scipy==1.16.3
+
+# Deep Learning (CPU-only, lighter)
+torch==2.5.1+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# API
+fastapi==0.124.0
+uvicorn[standard]==0.38.0
+pydantic==2.12.5
+python-multipart==0.0.6
+
+# UI
+streamlit==1.52.1
+plotly==6.5.0
+matplotlib==3.9.3
+
+# Utilities
+tqdm==4.67.1

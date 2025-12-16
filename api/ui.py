@@ -1,14 +1,73 @@
 import streamlit as st
 import requests
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import os
 
-st.set_page_config(page_title="Wave Simulation", layout="wide")
+# ✅ API URL を環境変数から取得（Docker 用）
+API_URL = os.getenv("API_URL", "http://localhost:8080")
 
-st.title("🌊 Neural Wave Simulation")
+st.set_page_config(page_title="NeuralWaveSim", layout="wide")
 
-# Sidebar configuration
-st.sidebar.header("設定")
+# Title
+st.title("🌊 NeuralWaveSim - 波動シミュレーション")
+st.markdown("物理ベースとニューラルネットワークによる波動方程式のシミュレーション")
+
+# ✅ Debug info in sidebar
+with st.sidebar:
+    st.markdown("---")
+    with st.expander("🔧 接続状態", expanded=True):
+        st.text(f"API URL: {API_URL}")
+        
+        # API 接続テスト
+        try:
+            health_response = requests.get(f"{API_URL}/health", timeout=5)
+            if health_response.status_code == 200:
+                st.success("✅ API 接続成功")
+                health_data = health_response.json()
+                st.json(health_data)
+            else:
+                st.error(f"❌ API 接続失敗")
+                st.text(f"Status Code: {health_response.status_code}")
+        except requests.exceptions.ConnectionError as e:
+            st.error("❌ API に接続できません")
+            st.code(str(e))
+            st.info("docker-compose logs api でログを確認してください")
+        except requests.exceptions.Timeout:
+            st.error("❌ 接続タイムアウト")
+        except Exception as e:
+            st.error(f"❌ エラー: {e}")
+
+def run_simulation(config: dict):
+    """Run simulation via API"""
+    try:
+        response = requests.post(
+            f"{API_URL}/simulate",
+            json=config,
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    except requests.exceptions.HTTPError as http_err:
+        st.error(f"❌ HTTP エラー: {http_err}")
+        if hasattr(http_err, 'response') and http_err.response is not None:
+            st.error(f"レスポンス: {http_err.response.text}")
+        return None
+    except requests.exceptions.ConnectionError as conn_err:
+        st.error(f"❌ APIサーバーに接続できません")
+        st.info(f"API URL: {API_URL}")
+        st.code(str(conn_err))
+        st.info("docker-compose logs api でログを確認してください")
+        return None
+    except requests.exceptions.Timeout:
+        st.error("❌ リクエストがタイムアウトしました")
+        return None
+    except Exception as e:
+        st.error(f"❌ エラー: {str(e)}")
+        return None
 
 # Model selection
 model_type = st.sidebar.selectbox(
@@ -42,44 +101,36 @@ height = st.sidebar.slider("高さ", 0.1, 2.0, 1.0, 0.1)
 # Run simulation
 if st.sidebar.button("シミュレーション実行", type="primary"):
     with st.spinner("計算中..."):
-        try:
-            response = requests.post(
-                "http://127.0.0.1:8000/simulate",
-                json={
-                    "model_type": model_type,
-                    "nx": nx,
-                    "nt": nt,
-                    "c": c,
-                    "initial_condition": {
-                        "wave_type": wave_type,
-                        "center": center,
-                        "width": width,
-                        "height": height
-                    }
-                }
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                wave_history = np.array(result["wave_history"])
-                params = result["params"]
-                comp_time = result["computation_time_ms"]
-                
-                st.success(f"✅ シミュレーション完了 ({comp_time:.2f} ms)")
-                
-                # Store results
-                st.session_state.wave_history = wave_history
-                st.session_state.params = params
-                st.session_state.model_type = model_type
-                st.session_state.comp_time = comp_time
-                
-            else:
-                st.error(f"サーバーエラー: {response.status_code} {response.text}")
+        # ✅ run_simulation() 関数を使用
+        config = {
+            "model_type": model_type,
+            "nx": nx,
+            "nt": nt,
+            "c": c,
+            "initial_condition": {
+                "wave_type": wave_type,
+                "center": center,
+                "width": width,
+                "height": height
+            }
+        }
         
-        except requests.exceptions.ConnectionError:
-            st.error("❌ APIサーバーに接続できません\n\n`uvicorn api.main:app --reload` を実行してください")
-        except Exception as e:
-            st.error(f"エラー: {str(e)}")
+        result = run_simulation(config)
+        
+        if result:
+            wave_history = np.array(result["wave_history"])
+            params = result["params"]
+            comp_time = result["computation_time_ms"]
+            
+            st.success(f"✅ シミュレーション完了 ({comp_time:.2f} ms)")
+            
+            # Store results
+            st.session_state.wave_history = wave_history
+            st.session_state.params = params
+            st.session_state.model_type = model_type
+            st.session_state.comp_time = comp_time
+        else:
+            st.error("シミュレーションに失敗しました")
 
 # Display results
 if "wave_history" in st.session_state:

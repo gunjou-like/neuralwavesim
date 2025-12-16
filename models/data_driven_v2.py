@@ -13,7 +13,7 @@ from core.config import PhysicsParams, InitialCondition
 class DataDrivenModel_v2(WaveModel):
     """Improved Data-Driven Wave Prediction Model"""
     
-    def __init__(self, model_path='models/data_driven_v2.pth'):
+    def __init__(self, model_path='models/checkpoints/data_driven_v2.pth'):
         """
         Initialize improved data-driven model
         
