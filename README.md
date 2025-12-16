@@ -45,7 +45,7 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
 | Model | Energy Variation | Speed | Accuracy | Overall |
 |-------|-----------------|-------|----------|---------|
 | Physics-based (FDM) | 4.22% ✅ | ⚡⚡⚡ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Data-driven v2 (LSTM) | 385.24% ❌ | ⚡ | ⭐ | ⭐ |
+| Data-driven v2 (LSTM) | 154.63% ❌ | ⚡ | ⭐ | ⭐ |
 | PINNs | 319.79% ❌ | ⚡ | ⭐ | ⭐ |
 | **PINNs v2** | **3.08%** ⭐ | ⚡ | ⭐⭐⭐⭐⭐ | **⭐⭐⭐⭐⭐** |
 
