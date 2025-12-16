@@ -78,14 +78,14 @@ def run_simulation(config: dict):
 # Model selection
 model_type = st.sidebar.selectbox(
     "Model Selection",
-    ["physics", "data-driven", "pinns", "pinns-v2"],
+    ["physics", "data-driven-v2", "pinns", "pinns-v2"],
     index=0
 )
 
 # Model descriptions
 model_info = {
     "physics": "Physics-Based (Finite Difference Method)",
-    "data-driven": "Data-Driven Neural Network",
+    "data-driven-v2": "Data-Driven Neural Network v2 (LSTM-based)",
     "pinns": "Physics-Informed Neural Networks (Original)",
     "pinns-v2": "Physics-Informed Neural Networks v2 (Improved Energy Conservation) ⭐"
 }

@@ -33,7 +33,7 @@ class InitialConditionRequest(BaseModel):
     data: Optional[List[float]] = None
 
 class SimulationRequest(BaseModel):
-    model_type: Literal["physics", "data-driven", "pinns", "pinns-v2"]  # ★ 修正
+    model_type: Literal["physics", "data-driven-v2", "pinns", "pinns-v2"]  # ★ 修正
     nx: int = Field(100, ge=50, le=500)
     nt: int = Field(200, ge=50, le=1000)
     c: float = Field(1.0, gt=0, le=5.0)
@@ -41,7 +41,7 @@ class SimulationRequest(BaseModel):
     
     @validator('model_type')
     def validate_model_type(cls, v):
-        allowed = ["physics", "data-driven", "pinns", "pinns-v2"]
+        allowed = ["physics", "data-driven-v2", "pinns", "pinns-v2"]
         if v not in allowed:
             raise ValueError(f"model_type は {allowed} のいずれかを指定してください")
         return v
@@ -130,7 +130,7 @@ def root():
         "version": "2.0",
         "available_models": [
             "physics",
-            "data-driven",
+            "data-driven-v2",
             "pinns",
             "pinns-v2"
         ]
