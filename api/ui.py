@@ -17,7 +17,7 @@ st.markdown("""
             **Physics-Informed Neural Networks for Wave Equation Simulation**
             This application demonstrates four approachs to solving the 1D wave equation:
             1. **Physics-Based Solver**: Traditional finite difference method.
-            2. **Data-Driven Neural Network**: A neural network trained on pure simulation data.
+            2. **Data-Driven Neural Network v2**: A neural network (LSTM-based) trained on pure simulation data.
             3. **PINNs (Original)**: Physics-Informed Neural Networks incorporating wave equation constraints.
             4. **PINNs v2**: An improved version of PINNs with enhanced energy conservation.
             """)
@@ -78,14 +78,14 @@ def run_simulation(config: dict):
 # Model selection
 model_type = st.sidebar.selectbox(
     "Model Selection",
-    ["physics", "data-driven", "pinns", "pinns-v2"],
+    ["physics", "data-driven-v2", "pinns", "pinns-v2"],
     index=0
 )
 
 # Model descriptions
 model_info = {
     "physics": "Physics-Based (Finite Difference Method)",
-    "data-driven": "Data-Driven Neural Network",
+    "data-driven-v2": "Data-Driven Neural Network v2 (LSTM-based)",
     "pinns": "Physics-Informed Neural Networks (Original)",
     "pinns-v2": "Physics-Informed Neural Networks v2 (Improved Energy Conservation) ⭐"
 }
@@ -98,7 +98,7 @@ c = st.sidebar.slider("Wave Speed (c)", 0.5, 2.0, 1.0, 0.1)
 
 # Initial condition
 st.sidebar.subheader("Initial Condition")
-wave_type = st.sidebar.selectbox("Wave Type", ["gaussian", "sine", "custom"])
+wave_type = st.sidebar.selectbox("Wave Type", ["gaussian", "sine (NotImplemented)", "custom(Notimplemented)"])
 center = st.sidebar.slider("Center", 0.0, 10.0, 5.0, 0.1)
 width = st.sidebar.slider("Width", 0.1, 3.0, 1.0, 0.1)
 height = st.sidebar.slider("Height", 0.1, 2.0, 1.0, 0.1)
