@@ -11,7 +11,6 @@ dist/
 build/
 
 # モデルファイル（大容量）
-*.pth
 *.h5
 *.pkl
 *.ckpt
