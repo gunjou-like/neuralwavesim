@@ -98,7 +98,7 @@ c = st.sidebar.slider("Wave Speed (c)", 0.5, 2.0, 1.0, 0.1)
 
 # Initial condition
 st.sidebar.subheader("Initial Condition")
-wave_type = st.sidebar.selectbox("Wave Type", ["gaussian", "sine", "custom"])
+wave_type = st.sidebar.selectbox("Wave Type", ["gaussian", "sine (NotImplemented)", "custom(Notimplemented)"])
 center = st.sidebar.slider("Center", 0.0, 10.0, 5.0, 0.1)
 width = st.sidebar.slider("Width", 0.1, 3.0, 1.0, 0.1)
 height = st.sidebar.slider("Height", 0.1, 2.0, 1.0, 0.1)
