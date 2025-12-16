@@ -30,7 +30,7 @@ logs/
 # 可視化結果（PNG は残す場合もある）
 # *.png
 # 以下は例外として保存
-images/ui.png
+!images/ui.png
 
 # IDE
 .vscode/
