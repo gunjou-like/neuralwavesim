@@ -12,34 +12,40 @@ API_URL = os.getenv("API_URL", "http://localhost:8080")
 st.set_page_config(page_title="NeuralWaveSim", layout="wide")
 
 # Title
-st.title("🌊 NeuralWaveSim - 波動シミュレーション")
-st.markdown("物理ベースとニューラルネットワークによる波動方程式のシミュレーション")
+st.title("🌊 NeuralWaveSim")
+st.markdown("""
+            **Physics-Informed Neural Networks for Wave Equation Simulation**
+            This application demonstrates four approachs to solving the 1D wave equation:
+            1. **Physics-Based Solver**: Traditional finite difference method.
+            2. **Data-Driven Neural Network**: A neural network trained on pure simulation data.
+            3. **PINNs (Original)**: Physics-Informed Neural Networks incorporating wave equation constraints.
+            4. **PINNs v2**: An improved version of PINNs with enhanced energy conservation.
+            """)
 
 # ✅ Debug info in sidebar
 with st.sidebar:
     st.markdown("---")
-    with st.expander("🔧 接続状態", expanded=True):
+    with st.expander("🔧 Connection Status", expanded=True):
         st.text(f"API URL: {API_URL}")
         
-        # API 接続テスト
+        # API connection test
         try:
             health_response = requests.get(f"{API_URL}/health", timeout=5)
             if health_response.status_code == 200:
-                st.success("✅ API 接続成功")
+                st.success("✅ API connection successful")
                 health_data = health_response.json()
                 st.json(health_data)
             else:
-                st.error(f"❌ API 接続失敗")
+                st.error(f"❌ API connection failed")
                 st.text(f"Status Code: {health_response.status_code}")
         except requests.exceptions.ConnectionError as e:
-            st.error("❌ API に接続できません")
+            st.error("❌ Cannot connect to API")
             st.code(str(e))
-            st.info("docker-compose logs api でログを確認してください")
+            st.info("Check logs with: docker-compose logs api")
         except requests.exceptions.Timeout:
-            st.error("❌ 接続タイムアウト")
+            st.error("❌ Request timed out")
         except Exception as e:
-            st.error(f"❌ エラー: {e}")
-
+            st.error(f"❌ Error: {e}")
 def run_simulation(config: dict):
     """Run simulation via API"""
     try:
@@ -52,56 +58,55 @@ def run_simulation(config: dict):
         return response.json()
     
     except requests.exceptions.HTTPError as http_err:
-        st.error(f"❌ HTTP エラー: {http_err}")
+        st.error(f"❌ HTTP error: {http_err}")
         if hasattr(http_err, 'response') and http_err.response is not None:
-            st.error(f"レスポンス: {http_err.response.text}")
+            st.error(f"Response: {http_err.response.text}")
         return None
     except requests.exceptions.ConnectionError as conn_err:
-        st.error(f"❌ APIサーバーに接続できません")
+        st.error(f"❌ Cannot connect to API server")
         st.info(f"API URL: {API_URL}")
         st.code(str(conn_err))
-        st.info("docker-compose logs api でログを確認してください")
+        st.info("Check logs with: docker-compose logs api")
         return None
     except requests.exceptions.Timeout:
-        st.error("❌ リクエストがタイムアウトしました")
+        st.error("❌ Request timed out")
         return None
     except Exception as e:
-        st.error(f"❌ エラー: {str(e)}")
+        st.error(f"❌ Error: {str(e)}")
         return None
 
 # Model selection
 model_type = st.sidebar.selectbox(
-    "モデル選択",
+    "Model Selection",
     ["physics", "data-driven", "pinns", "pinns-v2"],
     index=0
 )
 
 # Model descriptions
 model_info = {
-    "physics": "物理ベース（有限差分法）",
-    "data-driven": "データ駆動型ニューラルネットワーク",
-    "pinns": "物理法則組込みNN（オリジナル）",
-    "pinns-v2": "物理法則組込みNN v2（エネルギー保存改善版）⭐"
+    "physics": "Physics-Based (Finite Difference Method)",
+    "data-driven": "Data-Driven Neural Network",
+    "pinns": "Physics-Informed Neural Networks (Original)",
+    "pinns-v2": "Physics-Informed Neural Networks v2 (Improved Energy Conservation) ⭐"
 }
 st.sidebar.info(f"**{model_info[model_type]}**")
 
 # Physics parameters
-nx = st.sidebar.slider("空間グリッド数 (nx)", 50, 200, 100)
-nt = st.sidebar.slider("時間ステップ数 (nt)", 100, 400, 200)
-c = st.sidebar.slider("波速 (c)", 0.5, 2.0, 1.0, 0.1)
+nx = st.sidebar.slider("Spatial Grid Points (nx)", 50, 200, 100)
+nt = st.sidebar.slider("Time Steps (nt)", 100, 400, 200)
+c = st.sidebar.slider("Wave Speed (c)", 0.5, 2.0, 1.0, 0.1)
 
 # Initial condition
-st.sidebar.subheader("初期条件")
-wave_type = st.sidebar.selectbox("波形タイプ", ["gaussian", "sine", "custom"])
-
-center = st.sidebar.slider("中心位置", 0.0, 10.0, 5.0, 0.1)
-width = st.sidebar.slider("幅", 0.1, 3.0, 1.0, 0.1)
-height = st.sidebar.slider("高さ", 0.1, 2.0, 1.0, 0.1)
+st.sidebar.subheader("Initial Condition")
+wave_type = st.sidebar.selectbox("Wave Type", ["gaussian", "sine", "custom"])
+center = st.sidebar.slider("Center", 0.0, 10.0, 5.0, 0.1)
+width = st.sidebar.slider("Width", 0.1, 3.0, 1.0, 0.1)
+height = st.sidebar.slider("Height", 0.1, 2.0, 1.0, 0.1)
 
 # Run simulation
-if st.sidebar.button("シミュレーション実行", type="primary"):
-    with st.spinner("計算中..."):
-        # ✅ run_simulation() 関数を使用
+if st.sidebar.button("Run Simulation", type="primary"):
+    with st.spinner("Computing..."):
+        # ✅ run_simulation() function usage
         config = {
             "model_type": model_type,
             "nx": nx,
@@ -122,7 +127,7 @@ if st.sidebar.button("シミュレーション実行", type="primary"):
             params = result["params"]
             comp_time = result["computation_time_ms"]
             
-            st.success(f"✅ シミュレーション完了 ({comp_time:.2f} ms)")
+            st.success(f"✅ Simulation Complete ({comp_time:.2f} ms)")
             
             # Store results
             st.session_state.wave_history = wave_history
@@ -130,7 +135,7 @@ if st.sidebar.button("シミュレーション実行", type="primary"):
             st.session_state.model_type = model_type
             st.session_state.comp_time = comp_time
         else:
-            st.error("シミュレーションに失敗しました")
+            st.error("❌ Simulation failed")
 
 # Display results
 if "wave_history" in st.session_state:
@@ -141,16 +146,16 @@ if "wave_history" in st.session_state:
     
     # Metrics
     col1, col2, col3 = st.columns(3)
-    col1.metric("モデル", model_type)
-    col2.metric("計算時間", f"{comp_time:.2f} ms")
-    col3.metric("グリッドサイズ", f"{params['nx']} x {params['nt']}")
+    col1.metric("Model", model_type)
+    col2.metric("Computation Time", f"{comp_time:.2f} ms")
+    col3.metric("Grid Size", f"{params['nx']} x {params['nt']}")
     
-    # 3 Tabs: 波形、アニメーション、統計データ
-    tab1, tab2, tab3 = st.tabs(["📈 波形", "🎬 アニメーション", "📊 統計データ"])
+    # 3 Tabs: Waveform, Animation, Statistics
+    tab1, tab2, tab3 = st.tabs(["📈 Waveform", "🎬 Animation", "📊 Statistics"])
     
     with tab1:
         # Heatmap
-        st.subheader("時空間発展")
+        st.subheader("Spatiotemporal Evolution")
         
         t = np.arange(params['nt']) * params['dt']
         x = np.linspace(0, params['L'], params['nx'])
@@ -161,13 +166,13 @@ if "wave_history" in st.session_state:
             y=t,
             colorscale='RdBu_r',
             zmid=0,
-            colorbar=dict(title="変位 u")
+            colorbar=dict(title="Displacement u")
         ))
         
         fig.update_layout(
-            title="波の時空間発展",
-            xaxis_title="位置 x (m)",
-            yaxis_title="時刻 t (s)",
+            title="Spatiotemporal Evolution of the Wave",
+            xaxis_title="Position x (m)",
+            yaxis_title="Time t (s)",
             height=500
         )
         
@@ -175,10 +180,10 @@ if "wave_history" in st.session_state:
     
     with tab2:
         # Animation with time slider
-        st.subheader("波形アニメーション")
+        st.subheader("Waveform Animation")
         
         time_idx = st.slider(
-            "時刻を選択",
+            "Select Time",
             0,
             params['nt'] - 1,
             0,
@@ -199,9 +204,9 @@ if "wave_history" in st.session_state:
         ))
         
         fig.update_layout(
-            title=f"波形スナップショット (t = {current_time:.2f} s)",
-            xaxis_title="位置 x (m)",
-            yaxis_title="変位 u",
+            title=f"Waveform Snapshot (t = {current_time:.2f} s)",
+            xaxis_title="Position x (m)",
+            yaxis_title="Displacement u",
             yaxis_range=[-height * 1.2, height * 1.2],
             height=400,
             showlegend=True
@@ -210,14 +215,14 @@ if "wave_history" in st.session_state:
         st.plotly_chart(fig, use_container_width=True)
         
         # Show grid info
-        st.caption(f"時間ステップ: {time_idx + 1} / {params['nt']}")
+        st.caption(f"Time Step: {time_idx + 1} / {params['nt']}")
     
     with tab3:
         # Statistics
-        st.subheader("統計データ")
+        st.subheader("Statistics")
         
         # Energy analysis
-        st.markdown("#### エネルギー保存解析")
+        st.markdown("#### Energy Conservation Analysis")
         
         energies = []
         kinetic_energies = []
@@ -245,16 +250,16 @@ if "wave_history" in st.session_state:
         
         # Energy metrics
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("平均エネルギー", f"{E_mean:.4f}")
-        col2.metric("標準偏差", f"{E_std:.6f}")
-        col3.metric("変動率", f"{E_variation:.2f}%")
+        col1.metric("Average Energy", f"{E_mean:.4f}")
+        col2.metric("Standard Deviation", f"{E_std:.6f}")
+        col3.metric("Variation", f"{E_variation:.2f}%")
         
         if E_variation < 5.0:
-            col4.metric("評価", "✅ 優秀")
+            col4.metric("Evaluation", "✅ Excellent")
         elif E_variation < 10.0:
-            col4.metric("評価", "⚠️ 許容範囲")
+            col4.metric("Evaluation", "⚠️ Acceptable")
         else:
-            col4.metric("評価", "❌ 要改善")
+            col4.metric("Evaluation", "❌ Needs Improvement")
         
         # Energy plot
         time_points = np.arange(1, params['nt'] - 1) * params['dt']
@@ -265,7 +270,7 @@ if "wave_history" in st.session_state:
             x=time_points,
             y=energies,
             mode='lines',
-            name='総エネルギー',
+            name='Total Energy',
             line=dict(color='green', width=2)
         ))
         
@@ -273,7 +278,7 @@ if "wave_history" in st.session_state:
             x=time_points,
             y=kinetic_energies,
             mode='lines',
-            name='運動エネルギー',
+            name='Kinetic Energy',
             line=dict(color='red', width=1, dash='dash')
         ))
         
@@ -281,7 +286,7 @@ if "wave_history" in st.session_state:
             x=time_points,
             y=potential_energies,
             mode='lines',
-            name='位置エネルギー',
+            name='Potential Energy',
             line=dict(color='blue', width=1, dash='dash')
         ))
         
@@ -289,13 +294,13 @@ if "wave_history" in st.session_state:
             y=E_mean,
             line_dash="dot",
             line_color="gray",
-            annotation_text=f"平均: {E_mean:.4f}"
+            annotation_text=f"Average: {E_mean:.4f}"
         )
         
         fig.update_layout(
-            title="エネルギー時間発展",
-            xaxis_title="時刻 (s)",
-            yaxis_title="エネルギー",
+            title="Energy Time Evolution",
+            xaxis_title="Time (s)",
+            yaxis_title="Energy",
             height=400,
             showlegend=True
         )
@@ -303,16 +308,16 @@ if "wave_history" in st.session_state:
         st.plotly_chart(fig, use_container_width=True)
         
         # Wave statistics
-        st.markdown("#### 波形統計")
+        st.markdown("#### Wave Statistics")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("最大振幅", f"{np.max(np.abs(wave_history)):.4f}")
-            st.metric("最小値", f"{np.min(wave_history):.4f}")
-            st.metric("最大値", f"{np.max(wave_history):.4f}")
+            st.metric("Maximum Amplitude", f"{np.max(np.abs(wave_history)):.4f}")
+            st.metric("Minimum Value", f"{np.min(wave_history):.4f}")
+            st.metric("Maximum Value", f"{np.max(wave_history):.4f}")
         
         with col2:
-            st.metric("平均値", f"{np.mean(wave_history):.6f}")
-            st.metric("標準偏差", f"{np.std(wave_history):.4f}")
-            st.metric("データ点数", f"{wave_history.size}")
+            st.metric("Mean Value", f"{np.mean(wave_history):.6f}")
+            st.metric("Standard Deviation", f"{np.std(wave_history):.4f}")
+            st.metric("Data Points", f"{wave_history.size}")

@@ -14,9 +14,10 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
 ## 🎯 Features
 
 - **Multiple Model Implementations**
-  - 📐 Physics-based (Finite Difference Method)
-  - 🤖 Data-driven (LSTM Neural Network)
-  - 🧠 PINNs v2 (Physics-Informed Neural Networks with Energy Conservation)
+  - Physics-based (Finite Difference Method)
+  - Data-driven (LSTM Neural Network)
+  - PINNs (Physics-Informed Neural networks incorporating wave equation constraints.)
+  - PINNs v2 (Physics-Informed Neural Networks with Energy Conservation)
   
 - **Energy Conservation Analysis**
   - Real-time energy tracking
@@ -39,8 +40,9 @@ A comprehensive comparison of different approaches to solving the 1D wave equati
 
 | Model | Energy Variation | Speed | Accuracy | Overall |
 |-------|-----------------|-------|----------|---------|
-| Physics-based (FDM) | 4.17% ✅ | ⚡⚡⚡ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| Data-driven (LSTM) | 129% ❌ | ⚡ | ⭐ | ⭐ |
+| Physics-based (FDM) | 4.22% ✅ | ⚡⚡⚡ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| Data-driven (LSTM) | 385.24% ❌ | ⚡ | ⭐ | ⭐ |
+| PINNs | 319.79% ❌ | ⚡ | ⭐ | ⭐ |
 | **PINNs v2** | **3.08%** ⭐ | ⚡ | ⭐⭐⭐⭐⭐ | **⭐⭐⭐⭐⭐** |
 
 **PINNs v2 achieves better energy conservation than classical methods!**
@@ -69,13 +71,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Run Web UI (Recommended)
 
-```bash
-streamlit run api/ui.py
-```
-
-Open browser at `http://localhost:8501`
 
 ### Run API Server
 
@@ -84,6 +80,14 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8080
 ```
 
 API docs available at `http://localhost:8080/docs`
+
+### Run Web UI 
+
+```bash
+streamlit run api/ui.py
+```
+
+Open browser at `http://localhost:8501`
 
 ## 📖 Usage
 
@@ -152,13 +156,28 @@ Classical finite difference method (FDM):
 **Pros**: Fast, reliable, well-understood  
 **Cons**: Fixed grid, numerical dispersion
 
+
+### PINNs (Original)
+Physics-Informed Neural Network incorporating wave equation constraints.
+
+** Loss Function**:
+```
+L_total = λ_pde * L_pde + λ_bc * L_bc + λ_ic * L_ic
+where:
+  L_pde = MSE(∂²u/∂t² - c² ∂²u/∂x²)  # Physics loss
+  L_bc  = MSE(u(0,t), u(L,t))         # Boundary loss (u=0 at x=0,L)
+  L_ic  = MSE(u(x,0) - u_initial(x))   # Initial condition loss
+```
+
+
 ### PINNs v2 (Recommended) ⭐
 
 Physics-Informed Neural Network with explicit energy conservation:
 
 **Loss Function**:
 ```
-L = L_pde + L_bc + L_ic + λ_energy * L_energy
+L_total = λ_pde * L_pde + λ_bc * L_bc + λ_ic * L_ic + λ_energy * L_energy
+
 ```
 
 where `L_energy` enforces energy conservation:
