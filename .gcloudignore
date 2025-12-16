@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.suo
+*.sublime-*
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests (デプロイに不要)
+tests/
+*_test.py
+test_*.py
+
+# Training (不要な大容量ファイル)
+training/
+
+# Documentation (README.md は残す)
+docs/
+*.md
+!README.md
+
+# Images and media (デプロイに不要)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+Thumbs.db
+
+# Docker local files (ローカル開発用)
+docker-compose.yml
+docker-compose.*.yml
+
+# Deployment scripts (デプロイ自体には不要)
+deploy.ps1
+deploy.sh
+setup_budget.ps1
+setup_budget.sh
+emergency_stop.ps1
+emergency_stop.sh
+check_costs.ps1
+
+# Secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# ✅ models/checkpoints は除外しない（推論に必須、合計 5.51 MB）
+# models/checkpoints/*.pth を含める
