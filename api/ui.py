@@ -106,7 +106,6 @@ height = st.sidebar.slider("Height", 0.1, 2.0, 1.0, 0.1)
 # Run simulation
 if st.sidebar.button("Run Simulation", type="primary"):
     with st.spinner("Computing..."):
-        # ✅ run_simulation() function usage
         config = {
             "model_type": model_type,
             "nx": nx,
@@ -127,6 +126,47 @@ if st.sidebar.button("Run Simulation", type="primary"):
             params = result["params"]
             comp_time = result["computation_time_ms"]
             
+            # ✅ 追加: 初期条件の詳細確認
+            with st.expander("🔍 Debug: Initial Condition Analysis", expanded=False):
+                st.json(config)
+                st.write("**Response Parameters:**")
+                st.json(params)
+                st.write(f"**Wave History Shape:** {wave_history.shape}")
+                
+                # 初期波形の統計情報
+                initial_wave = wave_history[0]
+                st.write("**Initial Wave (t=0) Statistics:**")
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Max", f"{np.max(initial_wave):.4f}")
+                col2.metric("Min", f"{np.min(initial_wave):.4f}")
+                col3.metric("Mean", f"{np.mean(initial_wave):.4f}")
+                col4.metric("Std", f"{np.std(initial_wave):.4f}")
+                
+                # 初期波形の可視化
+                fig_init = go.Figure()
+                x_grid = np.linspace(0, params["L"], params["nx"])
+                fig_init.add_trace(go.Scatter(
+                    x=x_grid, 
+                    y=initial_wave,
+                    mode='lines+markers',
+                    name='Initial Wave',
+                    line=dict(color='blue', width=2)
+                ))
+                fig_init.update_layout(
+                    title="Initial Condition (t=0)",
+                    xaxis_title="Position (m)",
+                    yaxis_title="Amplitude",
+                    height=300
+                )
+                st.plotly_chart(fig_init, use_container_width=True)
+                
+                # 理論値との比較
+                st.write("**Expected Gaussian:**")
+                expected = height * np.exp(-((x_grid - center)**2) / (2 * width**2))
+                st.write(f"  Max (expected): {np.max(expected):.4f}")
+                st.write(f"  Max (actual):   {np.max(initial_wave):.4f}")
+                st.write(f"  Difference:     {np.abs(np.max(expected) - np.max(initial_wave)):.6f}")
+            
             st.success(f"✅ Simulation Complete ({comp_time:.2f} ms)")
             
             # Store results
@@ -134,8 +174,6 @@ if st.sidebar.button("Run Simulation", type="primary"):
             st.session_state.params = params
             st.session_state.model_type = model_type
             st.session_state.comp_time = comp_time
-        else:
-            st.error("❌ Simulation failed")
 
 # Display results
 if "wave_history" in st.session_state:
@@ -321,3 +359,36 @@ if "wave_history" in st.session_state:
             st.metric("Mean Value", f"{np.mean(wave_history):.6f}")
             st.metric("Standard Deviation", f"{np.std(wave_history):.4f}")
             st.metric("Data Points", f"{wave_history.size}")
+        
+        # ✅ 追加: 詳細なエネルギーデバッグ情報
+        with st.expander("🔍 Debug: Energy Calculation Details", expanded=False):
+            st.write(f"**Number of energy samples:** {len(energies)}")
+            st.write(f"**First 5 energies:**")
+            st.code(energies[:5])
+            st.write(f"**Last 5 energies:**")
+            st.code(energies[-5:])
+            
+            st.write(f"\n**Energy Statistics:**")
+            st.write(f"  Mean: {E_mean:.6f}")
+            st.write(f"  Std: {E_std:.6f}")
+            st.write(f"  Min: {np.min(energies):.6f}")
+            st.write(f"  Max: {np.max(energies):.6f}")
+            st.write(f"  Variation (Range/Mean): {E_variation:.2f}%")
+            st.write(f"  Variation (Std/Mean): {(E_std/E_mean)*100:.2f}%")
+            
+            # ✅ 初期波形のエネルギー確認
+            initial_wave = wave_history[0]
+            st.write(f"\n**Initial Wave Energy Components:**")
+            st.write(f"  Amplitude max: {np.max(np.abs(initial_wave)):.6f}")
+            st.write(f"  Squared sum: {np.sum(initial_wave**2):.6f}")
+            
+            # ✅ 検証用: t=1での計算を手動確認
+            st.write(f"\n**Manual Calculation at t=1:**")
+            u_t_manual = (wave_history[2] - wave_history[0]) / (2 * params['dt'])
+            u_x_manual = np.gradient(wave_history[1], params['dx'])
+            K_manual = 0.5 * np.sum(u_t_manual**2) * params['dx']
+            P_manual = 0.5 * params['c']**2 * np.sum(u_x_manual**2) * params['dx']
+            st.write(f"  K(t=1): {K_manual:.6f}")
+            st.write(f"  P(t=1): {P_manual:.6f}")
+            st.write(f"  E(t=1): {K_manual + P_manual:.6f}")
+            st.write(f"  Match with energies[0]? {np.isclose(energies[0], K_manual + P_manual)}")

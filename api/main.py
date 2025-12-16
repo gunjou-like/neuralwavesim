@@ -66,6 +66,16 @@ def simulate(request: SimulationRequest):
             T_max=T_max
         )
         
+        # ✅ デバッグログ追加
+        print(f"\n{'='*70}")
+        print(f"Simulation Request:")
+        print(f"  Model: {request.model_type}")
+        print(f"  nx={params.nx}, nt={params.nt}, c={params.c}")
+        print(f"  dt={params.dt}, dx={params.dx:.4f}")
+        print(f"  L={params.L}, T_max={params.T_max}")
+        print(f"{'='*70}")
+        
+        # 初期条件
         initial_condition = InitialCondition(
             wave_type=request.initial_condition.wave_type,
             center=request.initial_condition.center,
@@ -74,18 +84,35 @@ def simulate(request: SimulationRequest):
             data=request.initial_condition.data
         )
         
-        # 初期条件の検証
-        try:
-            initial_condition.validate(params.dx, params.L)
-        except ValueError as e:
-            raise HTTPException(
-                status_code=400,
-                detail=str(e)
-            )
+        # ✅ 初期波形の確認
+        x_grid = np.linspace(0, params.L, params.nx)
+        initial_wave = initial_condition.generate(x_grid)
+        
+        print(f"\nInitial Condition:")
+        print(f"  Type: {initial_condition.wave_type}")
+        print(f"  Center: {initial_condition.center}, Width: {initial_condition.width}, Height: {initial_condition.height}")
+        print(f"  Generated wave: max={np.max(initial_wave):.4f}, min={np.min(initial_wave):.4f}, mean={np.mean(initial_wave):.4f}")
+        print(f"  Grid points: {len(x_grid)}")
         
         # モデル実行
         model = ModelFactory.create(request.model_type)
+        
+        # ✅ モデル情報
+        print(f"\nModel Info:")
+        print(f"  Type: {type(model).__name__}")
+        if hasattr(model, 'model'):
+            print(f"  Model loaded: {model.model is not None}")
+            if hasattr(model.model, 'eval'):
+                print(f"  Model in eval mode: {not model.model.training}")
+        
         wave_history = model.predict(initial_condition, params)
+        
+        # ✅ 結果の確認
+        print(f"\nSimulation Results:")
+        print(f"  Output shape: {wave_history.shape}")
+        print(f"  Initial (t=0): max={np.max(wave_history[0]):.4f}, min={np.min(wave_history[0]):.4f}")
+        print(f"  Final (t={params.nt-1}): max={np.max(wave_history[-1]):.4f}, min={np.min(wave_history[-1]):.4f}")
+        print(f"  Overall: max={np.max(wave_history):.4f}, min={np.min(wave_history):.4f}")
         
         # 計算時間
         computation_time = (time.time() - start_time) * 1000

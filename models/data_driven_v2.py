@@ -48,37 +48,46 @@ class DataDrivenModel_v2(WaveModel):
         return "data-driven-v2"
     
     def predict(self, initial_condition: InitialCondition, params: PhysicsParams) -> np.ndarray:
-        """
-        Predict wave evolution
-        
-        Args:
-            initial_condition: Initial condition
-            params: Physics parameters
-        
-        Returns:
-            wave_history: (nt, nx) array
-        """
-        # Initialize
+        """予測実行"""
+        # 初期条件生成
         x = np.linspace(0, params.L, params.nx)
-        current_state = initial_condition.generate(x)
+        u_current = initial_condition.generate(x)
+        u_prev = u_current.copy()
         
-        wave_history = np.zeros((params.nt, params.nx))
-        wave_history[0] = current_state
+        # ✅ デバッグ: 初期状態を確認
+        print(f"\n[Data-Driven Model] Prediction Start:")
+        print(f"  Initial condition: max={np.max(u_current):.4f}, min={np.min(u_current):.4f}")
         
-        # Iterative prediction
+        # 履歴保存
+        wave_history = [u_current.copy()]
+        
+        # 時間積分
+        self.model.eval()
         with torch.no_grad():
             for t in range(1, params.nt):
-                state_tensor = torch.tensor(
-                    current_state.reshape(1, -1),
-                    dtype=torch.float32
-                )
+                # モデル入力
+                u_tensor = torch.tensor(u_current, dtype=torch.float32).unsqueeze(0)
                 
-                next_state = self.model(state_tensor)
-                current_state = next_state.numpy().flatten()
+                # 予測
+                u_next = self.model(u_tensor).squeeze(0).numpy()
                 
-                wave_history[t] = current_state
+                # ✅ デバッグ: 各ステップで異常値をチェック
+                if t % 50 == 0 or np.max(np.abs(u_next)) > 10.0:
+                    print(f"  Step {t}/{params.nt}: max={np.max(u_next):.4f}, min={np.min(u_next):.4f}, mean={np.mean(u_next):.4f}")
+                    if np.max(np.abs(u_next)) > 10.0:
+                        print(f"    ⚠️ Warning: Large amplitude detected!")
+                
+                # 履歴保存
+                wave_history.append(u_next.copy())
+                
+                # 更新
+                u_prev = u_current.copy()
+                u_current = u_next.copy()
         
-        return wave_history
+        result = np.array(wave_history)
+        print(f"[Data-Driven Model] Prediction Complete: shape={result.shape}")
+        
+        return result
     
     def predict_next_step(self, current_state: np.ndarray, params: PhysicsParams) -> np.ndarray:
         """
